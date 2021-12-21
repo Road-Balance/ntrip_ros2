@@ -1,0 +1,24 @@
+sudo apt install ros-foxy-nmea-msgs
+
+ros2 pkg create --build-type ament_cmake rtcm_msgs --dependencies std_msgs
+colcon build --packages-select rtcm_msgs
+ros2 interface show rtcm_msgs/msg/Message
+
+!! 주의사항 !!
+Header를 사용할 때는 std_msgs/Header를 넣어야 함
+
+```
+# A message representing a single RTCM message.
+std_msgs/Header rtcm_header
+
+uint8[] message
+```
+
+CMakeLists에도 추가해주어야 한다.
+```
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+```
+
+ros2 pkg create --build-type ament_python ntrip_ros --dependencies rtcm_msgs
