@@ -58,11 +58,165 @@ class SocketNtrip(Node):
         self.user = self.get_parameter('user').value
         self.verbose = self.get_parameter('verbose').value
         
+        self.force_stop = False
+        self.ssl = False
+
+        self.maxConnectTime = 0
+        self.found_header = False
+
+        self.reconnectTry = 1
+        self.sleepTime = 1
+        self.RTCM_ARR = []
+        self.data = "Initial data"
+
+        # Socket Client
+        self.client = None
+
         self.publisher = self.create_publisher(Message, self.rtcm_topic, 10)
         self.pub_msg = Message()
 
         timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.publish_callback)
+
+        # Create Fisrt Connection!!
+        self.ntripConnection()
+
+    def calcultateCheckSum(self, stringToCheck):
+        xsum_calc = 0
+        for char in stringToCheck:
+            xsum_calc = xsum_calc ^ ord(char)
+        return "%02X" % xsum_calc
+
+    def getGGABytes(self):
+        now = datetime.datetime.utcnow()
+        ggaString = (
+            "GPGGA,%02d%02d%04.2f,3734.087,N,12702.603,E,1,12,1.0,0.0,M,0.0,M,,"
+            % (now.hour, now.minute, now.second)
+        )
+
+        checksum = self.calcultateCheckSum(ggaString)
+        if self.verbose:
+            self.get_logger().info("$%s*%s\r\n" % (ggaString, checksum))
+        return bytes("$%s*%s\r\n" % (ggaString, checksum), "ascii")
+
+    def getMountPointBytes(self):
+        mountPointString = (
+            "GET %s HTTP/1.1\r\nUser-Agent: %s\r\nAuthorization: Basic %s\r\n"
+            % (self.mountpoint, self.useragent, self.user)
+        )
+
+        # if self.host or self.V2:
+        #    hostString = "Host: %s:%i\r\n" % (self.caster,self.port)
+        #    mountPointString += hostString
+
+        if V2:
+            mountPointString += "Ntrip-Version: Ntrip/2.0\r\n"
+        mountPointString += "\r\n"
+
+        if self.verbose:
+            self.get_logger().info(mountPointString)
+        return mountPointString.encode()
+
+    def createSocket(self):
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.ssl:
+            self.client = self.ssl.wrap_socket(self.client)
+
+        error_indicator = self.client.connect_ex(
+            (self.target_host, self.target_port)
+        )
+
+        return error_indicator
+
+    def handleClientException(self):
+        self.client = None
+
+        if self.verbose:
+            self.get_logger().info("Error indicator: ", error_indicator)
+
+        if self.reconnectTry < maxReconnect:
+            sys.stderr.write(
+                "%s No Connection to NtripCaster.  Trying again in %i seconds\n"
+                % (datetime.datetime.now(), sleepTime)
+            )
+
+            time.sleep(sleepTime)
+
+            sleepTime *= factor
+            if sleepTime > maxReconnectTime:
+                sleepTime = maxReconnectTime
+
+        self.reconnectTry += 1
+
+    def ntripConnection(self):
+        if self.maxConnectTime > 0:
+            self.EndConnect = datetime.timedelta(seconds=self.maxConnectTime)
+        try:
+            while self.reconnectTry <= maxReconnect:
+                self.found_header = False
+                if self.verbose:
+                    self.get_logger().info("Connection {0} of {1}\n".format(self.reconnectTry, maxReconnect))
+
+                error_indicator = self.createSocket()
+
+                if error_indicator == 0:
+                    self.sleepTime = 1
+                    self.connectTime = datetime.datetime.now()
+
+                    self.client.settimeout(10)
+                    self.client.send(self.getMountPointBytes())
+
+                    # casterRequest
+                    self.casterRequest()
+                    self.reconnectTry += 1
+                else:
+                    self.handleClientException()
+        except KeyboardInterrupt:
+            if self.client:
+                self.client.close()
+            sys.exit()
+
+    def casterRequest(self):
+        while not self.found_header:
+            casterResponse = self.client.recv(4096)  # All the data
+            header_lines = casterResponse.decode("utf-8").split("\r\n")
+
+            if self.verbose:
+                self.get_logger().info("".join(header_lines))
+
+            for line in header_lines:
+                if line == "":
+                    if not self.found_header:
+                        self.found_header = True
+                        if self.verbose:
+                            self.get_logger().info("End Of Header" + "\n")
+                else:
+                    if self.verbose:
+                        self.get_logger().info("Header: " + line + "\n")
+
+            request_output = None
+            for line in header_lines:
+                if line.find("SOURCETABLE") >= 0:
+                    sys.stderr.write("Mount point does not exist")
+                    sys.exit(1)
+                elif line.find("401 Unauthorized") >= 0:
+                    sys.stderr.write("Unauthorized request\n")
+                    sys.exit(1)
+                elif line.find("404 Not Found") >= 0:
+                    sys.stderr.write("Mount Point does not exist\n")
+                    sys.exit(2)
+                elif line.find("ICY 200 OK") >= 0:
+                    # Request was valid
+                    self.get_logger().warn("Valid Request : ICY 200 OK")
+                    self.client.sendall(self.getGGABytes())
+                elif line.find("HTTP/1.0 200 OK") >= 0:
+                    # Request was valid
+                    self.get_logger().warn("Valid Request : HTTP/1.0 200 OK")
+                    self.client.sendall(self.getGGABytes())
+                elif line.find("HTTP/1.1 200 OK") >= 0:
+                    # Request was valid
+                    self.get_logger().warn("Valid Request : HTTP/1.1 200 OK")
+                    self.client.sendall(self.getGGABytes())
 
     def publish_callback(self):
         self.pub_msg.header.frame_id = ""

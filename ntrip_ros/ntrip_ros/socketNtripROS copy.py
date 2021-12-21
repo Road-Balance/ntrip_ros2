@@ -80,8 +80,10 @@ class SocketNtrip(Node):
 
     def calcultateCheckSum(self, stringToCheck):
         xsum_calc = 0
+        
         for char in stringToCheck:
             xsum_calc = xsum_calc ^ ord(char)
+
         return "%02X" % xsum_calc
 
     def getGGABytes(self):
@@ -90,10 +92,10 @@ class SocketNtrip(Node):
             "GPGGA,%02d%02d%04.2f,3734.087,N,12702.603,E,1,12,1.0,0.0,M,0.0,M,,"
             % (now.hour, now.minute, now.second)
         )
-
         checksum = self.calcultateCheckSum(ggaString)
         if self.verbose:
             print("$%s*%s\r\n" % (ggaString, checksum))
+        
         return bytes("$%s*%s\r\n" % (ggaString, checksum), "ascii")
 
     def getMountPointBytes(self):
