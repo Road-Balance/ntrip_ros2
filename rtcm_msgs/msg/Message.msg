@@ -1,4 +1,4 @@
 # A message representing a single RTCM message.
-std_msgs/Header rtcm_header
+std_msgs/Header header
 
 uint8[] message

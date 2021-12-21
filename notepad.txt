@@ -21,4 +21,20 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 ```
 
+```
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Message.msg"
+  DEPENDENCIES std_msgs
+)
+```
+
+메세지를 사용하는 패키지의 package.xml에서도 다음 작업이 필요하다.
+
+```
+  <exec_depend>rtcm_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+```
+
+종속성을 가진 커스텀 메세지이므로 이러한 작업이 필요한 것! 
+
 ros2 pkg create --build-type ament_python ntrip_ros --dependencies rtcm_msgs

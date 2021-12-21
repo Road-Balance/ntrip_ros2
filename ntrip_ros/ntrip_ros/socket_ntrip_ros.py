@@ -11,6 +11,7 @@ from rclpy.parameter import Parameter
 
 from rtcm_msgs.msg import Message
 
+
 # 전역
 factor = 2  # How much the sleep time increases with each failed attempt
 maxReconnect = 1
@@ -25,45 +26,50 @@ class SocketNtrip(Node):
 
         self.declare_parameter('rtcm_topic')
         self.declare_parameter('target_host')
-        # self.declare_parameter('target_host', "fkp.ngii.go.kr")
         self.declare_parameter('target_port')
-        # self.declare_parameter('mountpoint', "VRS_V32")
-        # self.declare_parameter('useragent', "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36")
-        # self.declare_parameter('user', "tge1375@naver.com:gnss")
-        # self.declare_parameter('verbose', True)
+        self.declare_parameter('mountpoint')
+        self.declare_parameter('useragent', "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36")
+        self.declare_parameter('user', "tge1375@naver.com:gnss")
+        self.declare_parameter('verbose', True)
         
         rtcm_topic = Parameter('rtcm_topic', Parameter.Type.STRING, '/rtcm')
+        target_host = Parameter('target_host', Parameter.Type.STRING, 'fkp.ngii.go.kr')
         target_port = Parameter('target_port', Parameter.Type.INTEGER, 2201)
-        # param_int = Parameter('my_int', Parameter.Type.INTEGER, 12)
-        # param_double_array = Parameter('my_double_array', Parameter.Type.DOUBLE_ARRAY, [1.1, 2.2])
+        mountpoint = Parameter('mountpoint', Parameter.Type.STRING, 'VRS_V32')
+        useragent = Parameter('useragent', Parameter.Type.STRING, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36")
+        user = Parameter('user', Parameter.Type.STRING, "tge1375@naver.com:gnss")
+        verbose = Parameter('verbose', Parameter.Type.BOOL, True)
 
-        self.set_parameters([rtcm_topic, target_port])
+        self.set_parameters([
+            rtcm_topic, 
+            target_host,
+            target_port,
+            mountpoint,
+            useragent,
+            user,
+            verbose,
+        ])
 
         self.rtcm_topic = self.get_parameter('rtcm_topic').value
+        self.target_host = self.get_parameter('target_host').value
         self.target_port = self.get_parameter('target_port').value
-        print(self.rtcm_topic, type(self.rtcm_topic))
-        print(self.target_port, type(self.target_port))
-
-
-        # self.rtcm_topic = str(self.get_parameter('rtcm_topic'))
-        # self.target_host = str(self.get_parameter('target_host'))
-        # self.target_port = int(self.get_parameter('target_port'))
-        # self.mountpoint = str(self.get_parameter('mountpoint'))
-        # self.useragent = str(self.get_parameter('useragent'))
-        # self.user = str(self.get_parameter('user'))
-        # self.verbose = bool(self.get_parameter('verbose'))
+        self.mountpoint = self.get_parameter('mountpoint').value
+        self.useragent = self.get_parameter('useragent').value
+        self.user = self.get_parameter('user').value
+        self.verbose = self.get_parameter('verbose').value
         
-        # self.publisher = self.create_publisher(Message, 'self.rtcm_topic', 10)
+        self.publisher = self.create_publisher(Message, self.rtcm_topic, 10)
+        self.pub_msg = Message()
 
-        # self.get_logger().info(
-        #     self.rtcm_topic + 
-        #     self.target_host +
-        #     str(self.target_port) +
-        #     self.mountpoint +
-        #     self.useragent +
-        #     self.user +
-        #     str(self.verbose)
-        # )
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.publish_callback)
+
+    def publish_callback(self):
+        self.pub_msg.header.frame_id = ""
+        self.pub_msg.header.stamp = self.get_clock().now().to_msg()
+        self.pub_msg.message = bytes([100, 101, 102])
+
+        self.publisher.publish(self.pub_msg)
 
 def main(args=None):
     rclpy.init(args=args)

@@ -28,6 +28,7 @@ find_package(rosidl_default_generators REQUIRED)
 # so that they can be used in those languages, add the following lines
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Message.msg"
+  DEPENDENCIES std_msgs
 )
 
 if(BUILD_TESTING)
