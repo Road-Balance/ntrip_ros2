@@ -1,5 +1,26 @@
 # ntrip_ros2
 
+## Environment
+
+* Ubuntu 20.04 
+* ROS 2 Foxy
+* Mount located in South Korea
+
+## Build & Run 
+
+* Build
+
+```
+# Build Custom message for rtcm
+colcon build --packages-select rtcm_msgs
+# Build core pkg
+colcon build --packages-select ntrip_ros
+
+# Don't forget to setup.bash
+source ./install/setup.bash
+```
+
+* Run
 
 ```
 ros2 run ntrip_ros socket_ntrip
