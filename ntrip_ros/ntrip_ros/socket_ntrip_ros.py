@@ -28,9 +28,9 @@ class SocketNtrip(Node):
         self.declare_parameter('target_host')
         self.declare_parameter('target_port')
         self.declare_parameter('mountpoint')
-        self.declare_parameter('useragent', "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36")
-        self.declare_parameter('user', "tge1375@naver.com:gnss")
-        self.declare_parameter('verbose', True)
+        self.declare_parameter('useragent')
+        self.declare_parameter('user')
+        self.declare_parameter('verbose')
         
         rtcm_topic = Parameter('rtcm_topic', Parameter.Type.STRING, '/rtcm')
         target_host = Parameter('target_host', Parameter.Type.STRING, 'fkp.ngii.go.kr')
