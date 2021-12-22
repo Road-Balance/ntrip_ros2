@@ -75,8 +75,8 @@ class SocketNtrip(Node):
         self.publisher = self.create_publisher(Message, self.rtcm_topic, 10)
         self.pub_msg = Message()
 
-        timer_period = 0.5  # seconds
-        self.timer = self.create_timer(timer_period, self.publish_callback)
+        timer_period = 1  # seconds
+        self.timer = self.create_timer(timer_period, self.publishRTCM)
 
         # Create Fisrt Connection!!
         self.ntripConnection()
@@ -127,6 +127,25 @@ class SocketNtrip(Node):
         )
 
         return error_indicator
+
+    # def retrySocket(self):
+    #     self.force_stop = False
+    #     self.ssl = False
+
+    #     self.maxConnectTime = 0
+    #     self.found_header = False
+
+    #     self.reconnectTry = 1
+    #     self.sleepTime = 1
+    #     self.RTCM_ARR = []
+    #     self.data = "Initial data"
+
+    #     # Socket Client
+    #     self.client = None
+
+    #     self.pub_msg = Message()
+
+    #     self.ntripConnection()
 
     def handleClientException(self):
         self.client = None
@@ -218,12 +237,81 @@ class SocketNtrip(Node):
                     self.get_logger().warn("Valid Request : HTTP/1.1 200 OK")
                     self.client.sendall(self.getGGABytes())
 
-    def publish_callback(self):
-        self.pub_msg.header.frame_id = ""
-        self.pub_msg.header.stamp = self.get_clock().now().to_msg()
-        self.pub_msg.message = bytes([100, 101, 102])
+    def publishRTCM(self):
+        self.RTCM_ARR = []
+        while self.data:
+            try:
+                if self.client == None:
+                    continue
 
-        self.publisher.publish(self.pub_msg)
+                self.data = self.client.recv(1)
+                if ord(self.data) == 211:
+                    self.RTCM_ARR.append(ord(self.data))
+
+                    new_data = self.client.recv(2)
+                    if len(new_data) < 2:
+                        continue
+                    # print(new_data, len(new_data), new_data[0], new_data[1])
+
+                    self.RTCM_ARR.append(new_data[0])
+                    self.RTCM_ARR.append(new_data[1])
+
+                    cnt = new_data[0] * 256 + new_data[1]
+                    cnt = cnt + 1
+                    # self.get_logger().info("Msg Length : %d" % cnt)
+
+                    if cnt > 255:  # Just Abstract Value
+                        self.get_logger().warn("Over Msg Error, Ingnore Current Packet")
+                        self.RTCM_ARR = []
+                        continue
+
+                    for i in range(cnt):
+                        new_data = self.client.recv(1)
+                        self.RTCM_ARR.append(ord(new_data))
+
+                    if self.force_stop:
+                        return
+
+                    self.get_logger().info("Final Array prepared, lenght : %d " % len(self.RTCM_ARR))
+
+                    self.pub_msg.header.frame_id = ""
+                    self.pub_msg.header.stamp = self.get_clock().now().to_msg()
+                    self.pub_msg.message = bytes(self.RTCM_ARR)
+
+                    self.publisher.publish(self.pub_msg)
+
+                    self.RTCM_ARR = []
+
+                if self.maxConnectTime:
+                    if datetime.datetime.now() > self.connectTime + self.EndConnect:
+                        if self.verbose:
+                            self.get_logger().error("Connection Time exceeded\n")
+                        sys.exit(0)
+
+            except KeyboardInterrupt:
+                if self.client:
+                    self.get_logger().error("KeyboardInterrupt\n")
+                    self.client.close()
+                sys.exit()
+
+            # # TODO : TypeError: catching classes that do not inherit from BaseException is not allowed
+            # except self.client.timeout:
+            #     if self.verbose:
+            #         self.get_logger().error("Connection TimedOut\n")
+            #     self.data = False
+            # except self.client.error:
+            #     if self.verbose:
+            #         self.get_logger().error("Connection Error\n")
+            #     self.data = False
+            # except IndexError:
+            #     self.RTCM_ARR = []
+            #     pass
+            except Exception as e:
+                print(e)
+                # self.retrySocket()
+                if e == "timed out":
+                    print("timed out")
+                pass
 
 def main(args=None):
     rclpy.init(args=args)
