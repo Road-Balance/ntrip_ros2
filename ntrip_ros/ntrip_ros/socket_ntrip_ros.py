@@ -128,24 +128,23 @@ class SocketNtrip(Node):
 
         return error_indicator
 
-    # def retrySocket(self):
-    #     self.force_stop = False
-    #     self.ssl = False
+    def retrySocket(self):
+        self.force_stop = False
+        self.ssl = False
 
-    #     self.maxConnectTime = 0
-    #     self.found_header = False
+        self.maxConnectTime = 0
+        self.found_header = False
 
-    #     self.reconnectTry = 1
-    #     self.sleepTime = 1
-    #     self.RTCM_ARR = []
-    #     self.data = "Initial data"
+        self.reconnectTry = 1
+        self.sleepTime = 1
+        self.RTCM_ARR = []
+        self.data = "Initial data"
 
-    #     # Socket Client
-    #     self.client = None
+        # Socket Client Reset
+        self.client = None
+        self.pub_msg = Message()
 
-    #     self.pub_msg = Message()
-
-    #     self.ntripConnection()
+        self.ntripConnection()
 
     def handleClientException(self):
         self.client = None
@@ -308,7 +307,7 @@ class SocketNtrip(Node):
             #     pass
             except Exception as e:
                 print(e)
-                # self.retrySocket()
+                self.retrySocket()
                 if e == "timed out":
                     print("timed out")
                 pass
