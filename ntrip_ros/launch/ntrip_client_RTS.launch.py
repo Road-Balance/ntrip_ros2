@@ -8,9 +8,9 @@ def generate_launch_description():
             executable='socket_ntrip',
             parameters=[
                 {'rtcm_topic': '/rtcm'},
-                {'target_host': 'fkp.ngii.go.kr'},
-                {'target_port': 2201},
-                {'mountpoint': 'VRS_V32'},
+                {'target_host': 'RTS2.ngii.go.kr'},
+                {'target_port': 2101},
+                {'mountpoint': 'VRS-RTCM32'},
                 {'useragent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36'},
                 {'user': 'tge1375@naver.com:gnss'},
                 {'verbose': True},
