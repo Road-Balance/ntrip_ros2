@@ -19,45 +19,55 @@ maxReconnectTime = 1200
 sleepTime = 1  # So the first one is 1 second
 V2 = True
 
+"""method called order
+
+1. ntripConnection
+2. createSocket success => getMountPointBytes then send 
+    => casterRequest =>  getGGABytes => sendall
+   else => handleClientException
+
+- publishRTCM periodically (currently every 1 seconds)
+- retrySocket if Exception during publish
+
+"""
+
+"""Retry Logic & Examples
+TODO
+"""
+
 class SocketNtrip(Node):
 
     def __init__(self):
         super().__init__('socket_ntrip')
 
-        self.declare_parameter('rtcm_topic')
-        self.declare_parameter('target_host')
-        self.declare_parameter('target_port')
-        self.declare_parameter('mountpoint')
-        self.declare_parameter('useragent')
-        self.declare_parameter('user')
-        self.declare_parameter('verbose')
-        
-        rtcm_topic = Parameter('rtcm_topic', Parameter.Type.STRING, '/rtcm')
-        target_host = Parameter('target_host', Parameter.Type.STRING, 'fkp.ngii.go.kr')
-        target_port = Parameter('target_port', Parameter.Type.INTEGER, 2201)
-        mountpoint = Parameter('mountpoint', Parameter.Type.STRING, 'VRS_V32')
-        useragent = Parameter('useragent', Parameter.Type.STRING, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36")
-        user = Parameter('user', Parameter.Type.STRING, "tge1375@naver.com:gnss")
-        verbose = Parameter('verbose', Parameter.Type.BOOL, True)
-
-        self.set_parameters([
-            rtcm_topic, 
-            target_host,
-            target_port,
-            mountpoint,
-            useragent,
-            user,
-            verbose,
-        ])
-
+        self.declare_parameter('rtcm_topic', '/rtcm')
         self.rtcm_topic = self.get_parameter('rtcm_topic').value
+        self.get_logger().info(f"rtcm_topic : {self.rtcm_topic}")
+
+        self.declare_parameter('target_host', 'RTS2.ngii.go.kr')
         self.target_host = self.get_parameter('target_host').value
-        self.target_port = self.get_parameter('target_port').value
-        self.mountpoint = self.get_parameter('mountpoint').value
-        self.useragent = self.get_parameter('useragent').value
-        self.user = self.get_parameter('user').value
-        self.verbose = self.get_parameter('verbose').value
+        self.get_logger().info(f"target_host : {self.target_host}")
         
+        self.declare_parameter('target_port', '2101')
+        self.target_port = self.get_parameter('target_port').value
+        self.get_logger().info(f"target_port : {self.target_port}")
+
+        self.declare_parameter('mountpoint', 'VRS-RTCM32')
+        self.mountpoint = self.get_parameter('mountpoint').value
+        self.get_logger().info(f"mountpoint : {self.mountpoint}")
+
+        self.declare_parameter('useragent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36')
+        self.useragent = self.get_parameter('useragent').value
+        self.get_logger().info(f"useragent : {self.useragent}")
+
+        self.declare_parameter('user', 'tge1375@naver.com:gnss')
+        self.user = self.get_parameter('user').value
+        self.get_logger().info(f"user : {self.user}")
+
+        self.declare_parameter('verbose', True)
+        self.verbose = self.get_parameter('verbose').value
+        self.get_logger().info(f"verbose : {self.verbose}")
+
         self.force_stop = False
         self.ssl = False
 
@@ -122,6 +132,8 @@ class SocketNtrip(Node):
         if self.ssl:
             self.client = self.ssl.wrap_socket(self.client)
 
+        self.get_logger().info(f"{self.target_host} {self.target_port}")
+
         error_indicator = self.client.connect_ex(
             (self.target_host, self.target_port)
         )
@@ -173,11 +185,13 @@ class SocketNtrip(Node):
             while self.reconnectTry <= maxReconnect:
                 self.found_header = False
                 if self.verbose:
-                    self.get_logger().info("Connection {0} of {1}\n".format(self.reconnectTry, maxReconnect))
+                    self.get_logger().warn("Connection {0} of {1}\n".format(self.reconnectTry, maxReconnect))
 
                 error_indicator = self.createSocket()
 
                 if error_indicator == 0:
+                    self.get_logger().warn("Socket Creation Succeed")
+
                     self.sleepTime = 1
                     self.connectTime = datetime.datetime.now()
 
@@ -188,6 +202,7 @@ class SocketNtrip(Node):
                     self.casterRequest()
                     self.reconnectTry += 1
                 else:
+
                     self.handleClientException()
         except KeyboardInterrupt:
             if self.client:
@@ -224,15 +239,15 @@ class SocketNtrip(Node):
                     sys.stderr.write("Mount Point does not exist\n")
                     sys.exit(2)
                 elif line.find("ICY 200 OK") >= 0:
-                    # Request was valid
+                    # Valid case
                     self.get_logger().warn("Valid Request : ICY 200 OK")
                     self.client.sendall(self.getGGABytes())
                 elif line.find("HTTP/1.0 200 OK") >= 0:
-                    # Request was valid
+                    # Valid case
                     self.get_logger().warn("Valid Request : HTTP/1.0 200 OK")
                     self.client.sendall(self.getGGABytes())
                 elif line.find("HTTP/1.1 200 OK") >= 0:
-                    # Request was valid
+                    # Valid case
                     self.get_logger().warn("Valid Request : HTTP/1.1 200 OK")
                     self.client.sendall(self.getGGABytes())
 
