@@ -38,3 +38,13 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 종속성을 가진 커스텀 메세지이므로 이러한 작업이 필요한 것! 
 
 ros2 pkg create --build-type ament_python ntrip_ros --dependencies rtcm_msgs
+
+## 사용 가능한 마운트 포인트 조회하기
+
+```
+curl --http0.9 www.gnssdata.or.kr:2101 \
+   --user tge1375@naver.com:gnss \
+   -H "User-Agent: curl/7.68.0" \
+   -H "Connection: close" \
+   -H "Ntrip-Version: Ntrip/2.0"
+```

@@ -111,7 +111,7 @@ class SocketNtrip(Node):
 
     def getMountPointBytes(self):
         mountPointString = (
-            "GET %s HTTP/1.1\r\nUser-Agent: %s\r\nAuthorization: Basic %s\r\n"
+            "GET %s HTTP/1.1\r\nUser-Agent: %s\r\nAccept: */*\r\nAuthorization: Basic %s\r\nConnection: close\r\n"
             % (self.mountpoint, self.useragent, self.user)
         )
 
@@ -158,7 +158,7 @@ class SocketNtrip(Node):
 
         self.ntripConnection()
 
-    def handleClientException(self):
+    def handleClientException(self, error_indicator):
         self.client = None
 
         if self.verbose:
@@ -198,12 +198,10 @@ class SocketNtrip(Node):
                     self.client.settimeout(10)
                     self.client.send(self.getMountPointBytes())
 
-                    # casterRequest
                     self.casterRequest()
                     self.reconnectTry += 1
                 else:
-
-                    self.handleClientException()
+                    self.handleClientException(error_indicator)
         except KeyboardInterrupt:
             if self.client:
                 self.client.close()
