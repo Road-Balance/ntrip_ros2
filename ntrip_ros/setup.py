@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'test_params_rclpy = ntrip_ros.test_params_rclpy:main',
+            'serial_ntrip_ros = ntrip_ros.serial_ntrip_ros:main',
             'socket_ntrip = ntrip_ros.socket_ntrip_ros:main',
         ],
     },
