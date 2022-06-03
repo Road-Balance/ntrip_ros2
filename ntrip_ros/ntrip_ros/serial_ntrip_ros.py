@@ -53,6 +53,7 @@ else:
 # Testing
 test_mode = False
 dummy_gga = '$GPGGA,134451.797,4250.202,N,08320.949,W,1,12,1.0,0.0,M,0.0,M,,*7D'
+# ,093022.00,3733.44920,N,12702.78018,E,1,08,1.14,119.5,M,18.6,M,,*48\r\n
 
 # Global variables
 rtcm_queue = Queue.Queue()
@@ -214,18 +215,25 @@ class SerialThread(threading.Thread):
         self.serial_port = serial_port
         self.baud_rate = baud_rate
 
-        # self._ser = serial.Serial(self.serial_port, self.baud_rate, timeout=10)
-        # if self._ser.name != self.serial_port:
-        #     raise Exception("Couldn't find Device!")
+        self._ser = serial.Serial(self.serial_port, self.baud_rate, timeout=10)
+        if self._ser.name != self.serial_port:
+            raise Exception("Couldn't find Device!")
+
+
 
     def run(self):
         print('Starting Serial Read/Write thread')
         print('Writing RTCM message to %s:%d' % (self.serial_port, self.baud_rate))
         while not self.stop_event.isSet():
             try:
-                rtcm_msg = rtcm_queue.get_nowait()
-                print(rtcm_msg)
+                # rtcm_msg = rtcm_queue.get_nowait()
+                # print(rtcm_msg)
                 # self._ser.write(rtcm_msg)
+                while True:
+                    line = self._ser.readline()
+                    if line.find(b'$GNGGA') > 0:
+                        print("readline : ", line.split(b'$GNGGA')[-1])
+                        break
             except Queue.Empty:
                 # Nothing in the RTCM message queue this time
                 pass
@@ -242,6 +250,7 @@ def start_threads(caster_ip, caster_port, mountpoint, useragent, serial_port, ba
     
     if serial_port:
         workers = [NtripSocketThread(caster_ip, caster_port, mountpoint, useragent), SerialThread(serial_port, baud_rate)]
+        # workers = [SerialThread(serial_port, baud_rate)]
     else:
         print("No broadcast_port")
         workers = [NtripSocketThread(caster_ip, caster_port, mountpoint, useragent)]
@@ -284,7 +293,7 @@ class SocketNtrip(Node):
         self.verbose = self.get_parameter('verbose').value
         self.get_logger().info(f"verbose : {self.verbose}")
 
-        self.declare_parameter('serial_port', '/dev/ttyS0')
+        self.declare_parameter('serial_port', '/dev/ttyACM1')
         self.serial_port = self.get_parameter('serial_port').value
         self.get_logger().info(f"serial_port : {self.serial_port}")
 
@@ -305,7 +314,6 @@ class SocketNtrip(Node):
         # self.timer = self.create_timer(timer_period, self.publishRTCM)
 
     def __del__(self):
-        super().__del__()
         self.get_logger().warn('Shutting down')
         stop_threads(self.workers)
 
