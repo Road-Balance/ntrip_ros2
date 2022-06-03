@@ -53,12 +53,53 @@ else:
 # Testing
 test_mode = False
 dummy_gga = '$GPGGA,134451.797,4250.202,N,08320.949,W,1,12,1.0,0.0,M,0.0,M,,*7D'
+gga = ''
+
+gga_dict = {
+    'UTC Time': datetime.datetime.utcnow(),
+    'Lat': 4250.202,
+    'N/S': 'N',
+    'Lon': 8320.949,
+    'E/W': 'W',
+    'Fix': 0,
+    'Satellites': 0,
+    'HDOP': 0,
+    'Altitude': 0.0,
+    'Altitude Units': 'M',
+    }
 # ,093022.00,3733.44920,N,12702.78018,E,1,08,1.14,119.5,M,18.6,M,,*48\r\n
 
 # Global variables
 rtcm_queue = Queue.Queue()
 gga_queue = Queue.Queue()
 
+def parse_latlon(latlon):
+
+    integer = latlon.split('.')[0] 
+    decimal = latlon.split('.')[1]
+
+    degree = int(integer[:-2])
+    minutes = float(integer[-2:] + '.' + decimal)
+
+    return minutes / 60 + degree
+
+def parse_gga(gga_bytes):
+    gga_string = str(gga_bytes, 'utf-8')
+
+    gga_split = gga_string.split(',')
+
+    gga_dict['UTC Time'] = gga_split[1]
+    gga_dict['Lat'] = parse_latlon(gga_split[2])
+    gga_dict['N/S'] = gga_split[3]
+    gga_dict['Lon'] = parse_latlon(gga_split[4])
+    gga_dict['E/W'] = gga_split[5]
+    gga_dict['Fix'] = int(gga_split[6])
+    gga_dict['Satellites'] = int(gga_split[7])
+    gga_dict['HDOP'] = float(gga_split[8])
+    gga_dict['Altitude'] = float(gga_split[9])
+    gga_dict['Altitude Units'] = gga_split[10]
+
+    print(gga_dict)
 
 class NtripSocketThread (threading.Thread):
     def __init__(self, caster_ip, caster_port, mountpoint, useragent):
@@ -219,8 +260,6 @@ class SerialThread(threading.Thread):
         if self._ser.name != self.serial_port:
             raise Exception("Couldn't find Device!")
 
-
-
     def run(self):
         print('Starting Serial Read/Write thread')
         print('Writing RTCM message to %s:%d' % (self.serial_port, self.baud_rate))
@@ -232,7 +271,8 @@ class SerialThread(threading.Thread):
                 while True:
                     line = self._ser.readline()
                     if line.find(b'$GNGGA') > 0:
-                        print("readline : ", line.split(b'$GNGGA')[-1])
+                        parse_gga(line.split(b'$GNGGA')[-1])
+                        # print("readline : ", line.split(b'$GNGGA')[-1])
                         break
             except Queue.Empty:
                 # Nothing in the RTCM message queue this time
@@ -249,8 +289,8 @@ def stop_threads(workers):
 def start_threads(caster_ip, caster_port, mountpoint, useragent, serial_port, baud_rate):
     
     if serial_port:
-        workers = [NtripSocketThread(caster_ip, caster_port, mountpoint, useragent), SerialThread(serial_port, baud_rate)]
-        # workers = [SerialThread(serial_port, baud_rate)]
+        # workers = [NtripSocketThread(caster_ip, caster_port, mountpoint, useragent), SerialThread(serial_port, baud_rate)]
+        workers = [SerialThread(serial_port, baud_rate)]
     else:
         print("No broadcast_port")
         workers = [NtripSocketThread(caster_ip, caster_port, mountpoint, useragent)]

@@ -48,3 +48,14 @@ curl --http0.9 www.gnssdata.or.kr:2101 \
    -H "Connection: close" \
    -H "Ntrip-Version: Ntrip/2.0"
 ```
+
+# 2022 06 03 
+
+```
+pip3 install pyserial
+
+# Udev
+Bus 003 Device 007: ID 1546:01a8 U-Blox AG 
+sudo chmod 777 ttyACM1
+
+```
